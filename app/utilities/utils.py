@@ -197,6 +197,7 @@ class Utilities(encryption_manager.EncryptionManager):
         self.config_dict['file_mount_id'] = application_properties['hyperscale_config']['mount_filesystem_id']
         self.config_dict['use_thick_client'] = application_properties['use_thick_client']
         self.config_dict['date_domains'] = [domain.lower() for domain in application_properties['date_domains']]
+        self.config_dict['ignore_clob_columns'] = application_properties['ignore_clob_columns']
 
     def get_logger(self):
         log_file = self.log_dir / f'app_log_{self.curr_ts}.log'

@@ -18,6 +18,7 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
         self.raw_session_ts = config_dict['session_raw_ts']
         self.session_ts = config_dict['session_ts']
         self.debug_mode = config_dict['debug_mode']
+        self.ignore_clob_columns = config_dict['ignore_clob_columns']
 
     def insert_refresh_run(self, logger, db_conn, run_ts):
         insert_refresh_sql = f"insert into {self.metadata_refreshes}(refresh_ts, status) values(:1, :2) " \
@@ -571,6 +572,9 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
                 schema_name = each_result[0]
                 inventory_key = f"{schema_name}.{each_result[1]['tableName']}.{each_result[1]['columnName']}"
                 if key.lower() == inventory_key.lower():
+                    if self.ignore_clob_columns:
+                        if 'clob' in each_result[1]['dataType'].lower():
+                            break
                     domain_name = each_result[1]['domainName']
                     algorithm_applied = each_result[1]['algorithmName']
                     inventory_update_data.append((domain_name, algorithm_applied, profile_run_id, 'No', value))

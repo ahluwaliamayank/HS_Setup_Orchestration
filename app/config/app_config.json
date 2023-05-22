@@ -1,7 +1,7 @@
 {
   "database_connections" : {
     "repository" : {
-      "db_host" : "ec2-52-205-195-31.compute-1.amazonaws.com",
+      "db_host" : "ec2-54-243-8-34.compute-1.amazonaws.com",
       "db_port" : 1521,
       "use_sid" : true,
       "db_sid_or_service" : "VIRTDB19",
@@ -9,7 +9,7 @@
       "db_password" : "82j4ietJPWUIsY0BZcrfbQ==G|hSb986]YO#WvLLqeq4&9T,vIka|<!w?wsz"
     },
     "data_source" : {
-      "db_host" : "ec2-52-205-195-31.compute-1.amazonaws.com",
+      "db_host" : "ec2-54-243-8-34.compute-1.amazonaws.com",
       "db_port" : 1521,
       "use_sid" : true,
       "db_sid_or_service" : "VIRTDB19",
@@ -28,7 +28,7 @@
   },
   "masking_engines" : {
     "engine1" : {
-      "access_url" : "http://3.218.67.196/masking",
+      "access_url" : "http://44.211.237.90/masking",
       "user" : "/WuyuhzNmS2N/FOkDmXKcg==*LWi7BP0WvJ]7o7+od#J^&nBJWOS54b%q]Jr(+",
       "password" : "7k6xrp8LnW6JQBfdYwmcLQ==U4neECsL@,(475>RAbQnk%ti[<&J;}J[eL><tKhn&F"
     }
@@ -36,6 +36,7 @@
   "use_thick_client" : false,
   "profile_set_name" : "AH_Profile_Set",
   "date_domains" : ["Personal_Dates"],
+  "ignore_clob_columns" : true,
   "num_streams_for_profile_job" : 5,
   "max_memory_for_profiling_job_in_MB" : 16384,
   "max_jobs_per_engine" : 1,
