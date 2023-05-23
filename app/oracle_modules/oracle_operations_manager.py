@@ -7,6 +7,11 @@ class OracleOperationsManager:
         db_cursor.arraysize = read_batch_size
         success = True
         try:
+            logger.debug(f'Executing query : ')
+            logger.debug(select_sql)
+            if query_data:
+                logger.debug(f'Query data is : ')
+                logger.debug(query_data)
             query_result = db_cursor.execute(select_sql, query_data).fetchall()
         except Exception as excp:
             success = False
@@ -30,6 +35,8 @@ class OracleOperationsManager:
     def oracle_dml_or_ddl(self, logger, db_conn, dml_sql, query_data=None, commit_size=10000, ignore_errors=True):
         db_cursor = db_conn.cursor()
         success = True
+        logger.debug(f'Executing query : ')
+        logger.debug(dml_sql)
         if not query_data:
             try:
                 db_cursor.execute(dml_sql)
@@ -45,6 +52,8 @@ class OracleOperationsManager:
             high_val = commit_size
             while True:
                 batch_data = query_data[low_val:high_val]
+                logger.debug(f'2 sample rows for dml : ')
+                logger.debug(batch_data[:2])
                 try:
                     if ignore_errors:
                         db_cursor.executemany(dml_sql, batch_data, batcherrors=True)

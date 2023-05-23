@@ -214,7 +214,11 @@ class Profiler(
                 connector_id = 0
                 tables = next_executable[1]
                 profile_logger.info(f'Thread{thread_num} - Processing for schema : {schema_name} '
-                                    f'and tables : {tables}')
+                                    f'and table sample : {tables[:2]}')
+
+                profile_logger.debug(f'Thread{thread_num} - Processing for schema : {schema_name} '
+                                     f'and table sample : {tables}')
+
                 for each_schema in engine_details['Schema_Details']:
                     if each_schema['Schema_Name'].lower() == schema_name.lower():
                         connector_id = each_schema['Connector_ID']

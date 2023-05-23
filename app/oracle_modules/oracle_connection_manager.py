@@ -36,6 +36,8 @@ class OracleConnectionManager:
         else:
             jdbc_url = f"{jdbc_url}/{connection_dict['sid_or_service']}"
 
+        logger.debug(f'JDBC URL is : ')
+        logger.debug(jdbc_url)
         return True, jdbc_url
 
     def create_connection(self, logger, connection_params):
