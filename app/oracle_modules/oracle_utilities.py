@@ -508,6 +508,34 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
 
         return True, inventory_map
 
+    def build_context_inventory_map(self, logger, db_conn):
+        get_inventory_data_sql = f"select inventory.inventory_id, contexts.context_name, " \
+                                 f"inventory.table_name || '.' || inventory.column_name as key_name " \
+                                 f"from {self.metadata_inventory} inventory join " \
+                                 f"{self.context_master} contexts " \
+                                 f"on inventory.context_id = contexts.context_id " \
+                                 f"where (inventory.last_profiling_run_id is null or " \
+                                 f"inventory.last_profiling_run_id = 0 or " \
+                                 f"inventory.inventory_status in ('NEW', 'MODIFIED')) and " \
+                                 f"inventory.inventory_status not in ('DROPPED') and contexts.status = 'ACTIVE'"
+        success, inventory_data = self.oracle_select(logger, db_conn, get_inventory_data_sql)
+        if not success:
+            logger.error("Failed to get inventory_data for profiling")
+            return False, None
+
+        logger.info('Successfully retrieved inventory_data')
+
+        unique_contexts = list(set([inv[1] for inv in inventory_data]))
+        inventory_map = dict()
+        for each_context in unique_contexts:
+            context_inventory_map = dict()
+            context_inventory_data = [inv for inv in inventory_data if inv[1] == each_context]
+            for each_entry in context_inventory_data:
+                context_inventory_map[each_entry[2]] = each_entry[0]
+            inventory_map[each_context] = context_inventory_map
+
+        return True, inventory_map
+
     def create_jdbc_url(self, logger, config_dict):
         logger.info('Creating JDBC URL for source DB')
         host = config_dict['source_details']['host']
@@ -549,7 +577,7 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
         logger.info(f'Successfully updated status for profiling run id : {run_id} to : {status}')
         return True
 
-    def update_profiling_results(self, logger, repo_conn, inventory_map, results_queue, profile_run_id):
+    def update_profiling_results_old(self, logger, repo_conn, inventory_map, results_queue, profile_run_id):
         inventory_update_sql = f"update {self.metadata_inventory} set domain = :1, algorithm_applied = :2, " \
                                f"last_profiling_run_id = :3, reviewed = :4 where inventory_id = :5"
 
@@ -672,3 +700,30 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
                 logger.error(f"Failed to update dataset id for context with ID : {context_id}")
 
             return success
+
+    def update_profiling_results(self, logger, repo_conn, results_queue):
+        inventory_update_sql = f"update {self.metadata_inventory} set domain = :1, algorithm_applied = :2, " \
+                               f"last_profiling_run_id = :3, reviewed = :4 where inventory_id = :5"
+
+        csv_output = []
+        logger.info('Preparing repository updates after profiling')
+        while True:
+            try:
+                next_result = results_queue.get_nowait()
+            except Exception as excp:
+                logger.info('All results have been read')
+                break
+            else:
+                logger.debug(f'Updating repository with profiling results for : {next_result[0]}')
+                logger.debug(f'Results to be updated : {len(next_result[1])}')
+                logger.debug(f'Results for csv output : {len(next_result[2])}')
+                for each_csv_result in next_result[2]:
+                    csv_output.append(each_csv_result)
+
+                success = self.oracle_dml_or_ddl(logger, repo_conn, inventory_update_sql, query_data=next_result[1])
+                if not success:
+                    logger.error(f'Failed to update results for context : {next_result[0]}')
+                    return False, None
+                logger.debug(f'Successfully updated results for context : {next_result[0]}')
+
+        return True, csv_output
