@@ -454,6 +454,9 @@ if __name__ == "__main__":
         del db_utils_inst
         del conn_manager_inst
 
+    if utils_obj.config_dict['execute_hyperscale_group'] or utils_obj.config_dict['all']:
+        app_logger.info('Beginning hyperscale group execution')
+
     if utils_obj.config_dict['add_context'] or utils_obj.config_dict['remove_context']:
         conn_manager_inst = conn_manager.OracleConnectionManager(utils_obj.config_dict['use_thick_client'])
         app_logger.info('Establishing connection to repository')

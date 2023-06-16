@@ -1,0 +1,67 @@
+{
+  "database_connections" : {
+    "repository" : {
+      "db_host" : "ec2-44-203-125-51.compute-1.amazonaws.com",
+      "db_port" : 1521,
+      "use_sid" : true,
+      "db_sid_or_service" : "VIRTDB19",
+      "db_user" : "AWtcz2jKfQoldO0Y7uKAbvCB9jZ5v3m1RamvooaMZQM=vu*}>M_;,c1|K78I7Kudtm3LL0@S.-pH",
+      "db_password" : "82j4ietJPWUIsY0BZcrfbQ==G|hSb986]YO#WvLLqeq4&9T,vIka|<!w?wsz"
+    },
+    "data_source" : {
+      "db_host" : "ec2-44-203-125-51.compute-1.amazonaws.com",
+      "db_port" : 1521,
+      "use_sid" : true,
+      "db_sid_or_service" : "VIRTDB19",
+      "db_user" : "6MioVD2xUYVsGvvmdJwH3A==sJ8KL?0B6Nl*bMqe1p!C6%zjQa+g0NYi",
+      "db_password" : "OBL++VbWYeo3nbIe34DNzA==QO[N4cK7TL>%%l1EYB=r#^-mvM>W^COF1oMe"
+    }
+  },
+  "repository_tables" : {
+    "profiling_runs" : "PROFILING_RUNS",
+    "context_master" : "CONTEXT_MASTER",
+    "metadata_refreshes" : "METADATA_REFRESHES",
+    "metadata_inventory" : "METADATA_INVENTORY",
+    "hyperscale_datasets" : "HYPERSCALE_DATASETS",
+    "hyperscale_dataset_refreshes" : "HYPERSCALE_DATASET_REFRESHES",
+    "date_formats" : "DATE_FORMATS"
+  },
+  "masking_engines" : {
+    "engine1" : {
+      "access_url" : "http://3.236.108.7/masking",
+      "user" : "/WuyuhzNmS2N/FOkDmXKcg==*LWi7BP0WvJ]7o7+od#J^&nBJWOS54b%q]Jr(+",
+      "password" : "7k6xrp8LnW6JQBfdYwmcLQ==U4neECsL@,(475>RAbQnk%ti[<&J;}J[eL><tKhn&F"
+    }
+  },
+  "use_thick_client" : false,
+  "profile_set_name" : "AH_Profile_Set",
+  "date_domains" : ["Personal_Dates"],
+  "ignore_clob_columns" : true,
+  "num_streams_for_profile_job" : 5,
+  "max_memory_for_profiling_job_in_MB" : 16384,
+  "max_jobs_per_engine" : 3,
+  "max_tables_per_ruleset" : 3000,
+  "hyperscale_config" : {
+    "api_key" : "2.ChIB5vQXm8N4ruZpZUN2vv5vbsF7zpAV5OgI97WxFqNYCk4lBtCuyXWwq5KvadtQ",
+    "access_url" : "https://54.196.159.68/api/v3.4.0",
+    "connector_id" : 1,
+    "connector_id_for_root" : 2,
+    "mount_filesystem_id" : 1,
+    "group_parallel_jobs" : 2,
+    "source_connections" : 30,
+    "target_connections" : 20,
+    "masking_engine_ids" : [1],
+    "retain_execution_data" : "ON_ERROR",
+    "masking_job_config": {
+      "max_memory": 1024,
+      "min_memory": 0,
+      "description": "Job created by Hyperscale Masking",
+      "feedback_size": 100000,
+      "stream_row_limit": 10000,
+      "num_input_streams": 1
+    }
+  },
+  "base_key" : "1YqK}-uWYinB]!=uh@pn",
+  "secondary_key" : "q;I[k#;#e[?8N=l%|v7D",
+  "max_parallel_processes" : 4
+}

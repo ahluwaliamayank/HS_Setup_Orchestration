@@ -18,6 +18,7 @@ class Utilities(encryption_manager.EncryptionManager):
         self.log_dir = Path(__file__).parent.parent.resolve().with_name('logs')
         self.metadata_refresh_logs = self.log_dir / 'metadata_refresh_logs'
         self.profiling_logs = self.log_dir / 'profiling_logs'
+        self.hyperscale_execution_logs = self.log_dir / 'hyperscale_execution_logs'
         self.proc_log_dir = self.log_dir / 'proc_logs'
         self.curr_raw_ts = dt.datetime.now()
         self.curr_ts = self.curr_raw_ts.strftime("%d%m%Y_%H%M%S")
@@ -29,6 +30,8 @@ class Utilities(encryption_manager.EncryptionManager):
         parser.add_argument('--get_metadata', default=False, required=False, action='store_true')
         parser.add_argument('--profile', default=False, required=False, action='store_true')
         parser.add_argument('--setup_hyperscale_dataset', default=False, required=False, action='store_true')
+        parser.add_argument('--execute_hyperscale_group', default=False, required=False, action='store_true')
+        parser.add_argument('-group_name', type=str, default=None, required=False)
         parser.add_argument('--add_context', default=False, required=False, action='store_true')
         parser.add_argument('--remove_context', default=False, required=False, action='store_true')
         parser.add_argument('-context_name', type=str, default=None, required=False)
@@ -52,6 +55,7 @@ class Utilities(encryption_manager.EncryptionManager):
         self.config_dict['get_metadata'] = False
         self.config_dict['profile'] = False
         self.config_dict['setup_hyperscale_dataset'] = False
+        self.config_dict['execute_hyperscale_group'] = False
         self.config_dict['add_context'] = False
         self.config_dict['remove_context'] = False
 
@@ -67,6 +71,14 @@ class Utilities(encryption_manager.EncryptionManager):
         elif args.setup_hyperscale_dataset:
             print('Chosen option is to set up hyperscale dataset')
             self.config_dict['setup_hyperscale_dataset'] = True
+        elif args.execute_hyperscale_group:
+            print('Chosen option is to execute hyperscale group')
+            self.config_dict['execute_hyperscale_group'] = True
+            if not args.group_name:
+                print('Group name is mandatory when executing hyperscale jobs, please supply group name')
+                self.exit_on_error()
+            else:
+                self.config_dict['group_name'] = args.group_name
         elif args.add_context:
             print('Chosen option is to add a new context')
             self.config_dict['add_context'] = True
@@ -194,10 +206,19 @@ class Utilities(encryption_manager.EncryptionManager):
         self.config_dict['hyperscale_access_url'] = application_properties['hyperscale_config']['access_url']
         self.config_dict['hyperscale_access_key'] = f"apk {application_properties['hyperscale_config']['api_key']}"
         self.config_dict['hyperscale_connector_id'] = application_properties['hyperscale_config']['connector_id']
+        self.config_dict['hyperscale_connector_id_for_root'] = \
+            application_properties['hyperscale_config']['connector_id_for_root']
         self.config_dict['file_mount_id'] = application_properties['hyperscale_config']['mount_filesystem_id']
+        self.config_dict['masking_engine_ids'] = application_properties['hyperscale_config']['masking_engine_ids']
+        self.config_dict['retain_execution_data'] = application_properties['hyperscale_config']['retain_execution_data']
+        self.config_dict['masking_job_config'] = application_properties['hyperscale_config']['masking_job_config']
+        self.config_dict['source_connections'] = application_properties['hyperscale_config']['source_connections']
+        self.config_dict['target_connections'] = application_properties['hyperscale_config']['target_connections']
+
         self.config_dict['use_thick_client'] = application_properties['use_thick_client']
         self.config_dict['date_domains'] = [domain.lower() for domain in application_properties['date_domains']]
         self.config_dict['ignore_clob_columns'] = application_properties['ignore_clob_columns']
+
 
     def get_logger(self):
         log_file = self.log_dir / f'app_log_{self.curr_ts}.log'
