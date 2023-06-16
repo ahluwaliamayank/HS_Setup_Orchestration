@@ -173,7 +173,7 @@ if __name__ == "__main__":
             else:
                 app_logger.info('Closed connection to repository db')
         else:
-            success, inventory_map = db_utils_inst.build_inventory_map(app_logger, repo_conn)
+            success, inventory_map = db_utils_inst.build_context_inventory_map(app_logger, repo_conn)
             if not success:
                 app_logger.error('Failed to build inventory map for profiling, aborting')
                 success = conn_manager_inst.close_connection(app_logger, repo_conn)
@@ -305,8 +305,7 @@ if __name__ == "__main__":
                 utils_obj.exit_on_error(log_object)
 
             if results_queue.qsize() > 0:
-                success, csv_output = db_utils_inst.update_profiling_results(app_logger, repo_conn, inventory_map,
-                                                                             results_queue, new_profiling_run_id)
+                success, csv_output = db_utils_inst.update_profiling_results(app_logger, repo_conn, results_queue)
                 if not success:
                     num_errors += 1
                 else:

@@ -13,6 +13,8 @@ import api_modules.api_resources.profile_jobs as profiler_jobs
 import api_modules.api_resources.execution as execution
 import api_modules.api_resources.profile_results as profile_results
 import api_modules.api_resources.async_tasks as async_tasks
+import oracle_modules.oracle_operations_manager as ops_manager
+import oracle_modules.oracle_connection_manager as conn_manager
 
 
 class Profiler(
@@ -25,7 +27,9 @@ class Profiler(
     profiler_jobs.ProfileJob,
     execution.Execution,
     profile_results.ProfileResults,
-    async_tasks.AsyncTasks
+    async_tasks.AsyncTasks,
+    ops_manager.OracleOperationsManager,
+    conn_manager.OracleConnectionManager
 ):
 
     compliance_app_name = 'incremental_profiler'
@@ -43,7 +47,7 @@ class Profiler(
         self.max_memory_for_profiling_job = config_dict['max_memory_for_profiling_job']
 
         self.inventory_map = inventory_map
-
+        self.ignore_clob_columns = config_dict['ignore_clob_columns']
         self.metadata_inventory = config_dict['metadata_inventory']
 
     def get_engine_authorizations(self, logger):
@@ -200,7 +204,7 @@ class Profiler(
         return True, datasets
 
     def profiler(self, profile_logger, dataset_queue, engine_details, error_queue,
-                 thread_num, results_queue):
+                 thread_num, results_queue, profile_run_id):
         profile_logger.info(f'Starting up thread : {thread_num}')
         ruleset_counter = thread_num * 1000
         while error_queue.qsize() == 0:
@@ -230,6 +234,18 @@ class Profiler(
                     break
 
                 if error_queue.qsize() > 0:
+                    break
+
+                try:
+                    context_inventory_map = self.inventory_map[schema_name]
+                except KeyError as ke:
+                    profile_logger.error(f'Thread{thread_num} - Error in getting inventory map for : {schema_name}')
+                    error_queue.put(f"error occurred in thread {thread_num}")
+                    break
+
+                if not context_inventory_map or len(context_inventory_map) < 1:
+                    profile_logger.error(f'Thread{thread_num} - Could not find inventory map for : {schema_name}')
+                    error_queue.put(f"error occurred in thread {thread_num}")
                     break
 
                 ruleset_name = f'ruleset_{ruleset_counter}'
@@ -357,8 +373,40 @@ class Profiler(
                     profile_logger.info(f"Thread{thread_num} - No Results found")
                 else:
                     profile_logger.info(f"Thread{thread_num} - successfully retrieved results")
+                    profile_logger.info(f"Thread{thread_num} - Mapping retrieved results to inventory")
+                    inventory_update_data = []
+                    csv_output = []
+                    profile_logger.info(f"Thread{thread_num} - inventory size : {len(context_inventory_map)}")
+                    profile_logger.info(f"Thread{thread_num} - result size : {len(results)}")
+                    result_dict = dict()
                     for each_result in results:
-                        results_queue.put((schema_name, each_result))
+                        key = f"{each_result['tableName']}.{each_result['columnName']}"
+                        if self.ignore_clob_columns:
+                            if 'clob' in each_result['dataType'].lower():
+                                continue
+                            result_dict[key] = dict()
+                            result_dict[key]['domainName'] = each_result['domainName']
+                            result_dict[key]['algorithmName'] = each_result['algorithmName']
+
+                    profile_logger.info(f"Thread{thread_num} - result dictionary size : {len(result_dict)}")
+
+                    for key, value in context_inventory_map.items():
+                        if key in result_dict:
+                            inventory_update_data.append(
+                                (result_dict[key]['domainName'], result_dict[key]['algorithmName'], profile_run_id,
+                                 'No', value)
+                            )
+                            csv_output.append(
+                                (schema_name, key.split('.')[0], key.split('.')[1],
+                                 result_dict[key]['domainName'], result_dict[key]['algorithmName'], 'No'))
+                        else:
+                            inventory_update_data.append((None, None, profile_run_id, 'No', value))
+                            csv_output.append(
+                                (schema_name, key.split('.')[0], key.split('.')[1],
+                                 None, None, 'No'))
+
+                    results_queue.put((schema_name, inventory_update_data, csv_output))
+                    profile_logger.info(f"Thread{thread_num} - Mapped retrieved results to inventory")
 
                 if error_queue.qsize() > 0:
                     break
@@ -385,7 +433,7 @@ class Profiler(
                 target=self.profiler,
                 args=(
                     profile_logger, dataset_queue, engine_details, error_queue, x,
-                    results_queue
+                    results_queue, profile_run_id
                 )
             )
             thread_list.append(t)
