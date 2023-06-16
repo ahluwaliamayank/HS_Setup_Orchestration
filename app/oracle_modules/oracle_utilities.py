@@ -656,7 +656,7 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
     def get_inventory_for_masking(self, logger, db_conn):
         get_inventory_for_masking_sql = f"select cont.context_name, dataset.hyperscale_dataset_id, inv.table_name, " \
                                         f"inv.column_name, inv.domain, inv.algorithm_applied, cont.context_id," \
-                                        f"inv.num_rows, inv.data_type, fmt.date_format from " \
+                                        f"inv.num_rows, inv.data_type, fmt.date_format, dataset.job_id from " \
                                         f"{self.metadata_inventory} inv join {self.context_master} cont on " \
                                         f"inv.context_id = cont.context_id left join " \
                                         f"{self.hyperscale_datasets} dataset on " \
@@ -700,6 +700,17 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
                 logger.error(f"Failed to update dataset id for context with ID : {context_id}")
 
             return success
+
+    def update_hyperscale_job_id(self, logger, db_conn, context_id, job_id, refresh_id):
+
+        update_job_id_sql = f"update {self.hyperscale_datasets} set last_hyperscale_dataset_refresh_id = :1, " \
+                            f"job_id = :2 where context_id = :3"
+        update_job_id_data = [(refresh_id, job_id, context_id)]
+        success = self.oracle_dml_or_ddl(logger, db_conn, update_job_id_sql, query_data=update_job_id_data)
+        if not success:
+            logger.error(f"Failed to update job id for context with ID : {context_id}")
+
+        return success
 
     def update_profiling_results(self, logger, repo_conn, results_queue):
         inventory_update_sql = f"update {self.metadata_inventory} set domain = :1, algorithm_applied = :2, " \
