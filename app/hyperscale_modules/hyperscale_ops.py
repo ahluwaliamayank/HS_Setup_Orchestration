@@ -116,7 +116,7 @@ class Hyperscale_Ops(
                 logger.info(f'Successfully updated repository with dataset ID for schema : {each_schema}')
 
             job_request_data = dict()
-            job_request_data['name'] = f'{each_schema}'
+            job_request_data['name'] = f'{each_schema}_job'
             job_request_data['masking_engine_ids'] = self.masking_engine_ids
             job_request_data['data_set_id'] = dataset_id
             job_request_data['app_name_prefix'] = f'app_{each_schema}'
