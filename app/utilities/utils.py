@@ -44,7 +44,7 @@ class Utilities(encryption_manager.EncryptionManager):
             self.config_dict['debug_mode'] = False
         if (
                 args.get_metadata or args.profile or args.setup_hyperscale_dataset or args.add_context or
-                args.remove_context
+                args.remove_context or args.execute_hyperscale_group
         ):
             args.all = False
 
@@ -75,10 +75,9 @@ class Utilities(encryption_manager.EncryptionManager):
             print('Chosen option is to execute hyperscale group')
             self.config_dict['execute_hyperscale_group'] = True
             if not args.group_name:
-                print('Group name is mandatory when executing hyperscale jobs, please supply group name')
-                self.exit_on_error()
+                self.config_dict['execute_group_name'] = 'ALL'
             else:
-                self.config_dict['group_name'] = args.group_name
+                self.config_dict['execute_group_name'] = args.group_name
         elif args.add_context:
             print('Chosen option is to add a new context')
             self.config_dict['add_context'] = True
@@ -235,6 +234,8 @@ class Utilities(encryption_manager.EncryptionManager):
             log_file = self.metadata_refresh_logs / f'{refresh_id}_proc_num_{proc_num}_{log_ts}.log'
         elif log_type == 'profile':
             log_file = self.profiling_logs / f'{refresh_id}_engine{proc_num}_{log_ts}.log'
+        elif log_type == 'execution':
+            log_file = self.hyperscale_execution_logs / f'proc_num_{proc_num}_{log_ts}.log'
         else:
             log_file = self.proc_log_dir / f'app_log_{log_ts}.log'
 

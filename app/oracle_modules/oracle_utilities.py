@@ -738,3 +738,32 @@ class OracleUtilities(ops_manager.OracleOperationsManager, conn_manager.OracleCo
                 logger.debug(f'Successfully updated results for context : {next_result[0]}')
 
         return True, csv_output
+
+    def get_jobs_for_execution(self, logger, db_conn):
+        get_jobs_for_execution_sql = f"select cont.context_name, sum(inv.num_rows), dataset.hyperscale_dataset_id, " \
+                                     f"dataset.job_id from " \
+                                     f"{self.metadata_inventory} inv join " \
+                                     f"{self.context_master} cont " \
+                                     f"on cont.context_id = inv.context_id left join " \
+                                     f"{self.hyperscale_datasets} dataset on " \
+                                     f"cont.context_id = dataset.context_id " \
+                                     f"where cont.status = :1 group by " \
+                                     f"cont.context_name, dataset.hyperscale_dataset_id, dataset.job_id " \
+                                     f"order by sum(inv.num_rows) desc"
+
+        get_jobs_for_execution_data = ('ACTIVE', )
+
+        success, job_ids = self.oracle_select(logger, db_conn, get_jobs_for_execution_sql,
+                                              query_data=get_jobs_for_execution_data)
+        if not success:
+            logger.error("Failed to get jobs for masking")
+            return False, None
+
+        for each_job in job_ids:
+            if not each_job[2] or not each_job[3]:
+                logger.error(f'Dataset ID or Job ID is missing for : {each_job[0]}')
+                return False, None
+
+        logger.info('Successfully retrieved jobs ids for masking')
+
+        return True, job_ids

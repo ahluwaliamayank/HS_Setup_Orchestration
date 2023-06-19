@@ -7,6 +7,7 @@ import hyperscale_modules.hyperscale_ops as hyperscale_ops
 import multiprocessing as mp
 import os
 import datetime as dt
+import math
 
 if __name__ == "__main__":
     start_ts = dt.datetime.now()
@@ -16,6 +17,9 @@ if __name__ == "__main__":
     shared_queue = process_manager.Queue()
     dataset_queue = process_manager.Queue()
     results_queue = process_manager.Queue()
+    execution_queue_big_contexts = process_manager.Queue()
+    execution_queue_small_contexts = process_manager.Queue()
+    error_queue = process_manager.Queue()
     utils_obj.read_app_config()
 
     log_object, app_logger = utils_obj.get_logger()
@@ -456,6 +460,94 @@ if __name__ == "__main__":
 
     if utils_obj.config_dict['execute_hyperscale_group'] or utils_obj.config_dict['all']:
         app_logger.info('Beginning hyperscale group execution')
+
+        num_errors = 0
+
+        conn_manager_inst = conn_manager.OracleConnectionManager(utils_obj.config_dict['use_thick_client'])
+        app_logger.info('Establishing connection to repository')
+
+        success, repo_connection_params = conn_manager_inst.get_connection_params(
+            app_logger, utils_obj.config_dict['repository_details'])
+
+        if not success:
+            app_logger.error('Failed to create connection params for repository db')
+            utils_obj.exit_on_error(log_object)
+
+        success, repo_conn = conn_manager_inst.create_connection(app_logger, repo_connection_params)
+        if not success or not repo_conn:
+            app_logger.error("Failed to create connection to repository db, aborting")
+            utils_obj.exit_on_error(log_object)
+
+        app_logger.info('Successfully connected to repository db')
+
+        db_utils_inst = db_utils.OracleUtilities(utils_obj.config_dict)
+
+        success, jobs_ids = db_utils_inst.get_jobs_for_execution(app_logger, repo_conn)
+        if not success:
+            app_logger.error('Failed to get job ids for masking, aborting')
+            success = conn_manager_inst.close_connection(app_logger, repo_conn)
+            if not success:
+                app_logger.error('Failed to close connection to repository db')
+            else:
+                app_logger.info('Closed connection to repository db')
+            utils_obj.exit_on_error(log_object)
+
+        total_contexts = len(jobs_ids)
+        print(f'Total contexts to be executed : {total_contexts}')
+        app_logger.info(f'Total contexts to be executed : {total_contexts}')
+        app_logger.debug(f'Context and job details : {jobs_ids}')
+
+        num_processes = 2
+        app_logger.info(f'Parallel degree used for execution : {num_processes}')
+
+        success = conn_manager_inst.close_connection(app_logger, repo_conn)
+        if not success:
+            app_logger.error('Failed to close connection to repository db')
+        else:
+            app_logger.info('Closed connection to repository db')
+
+        big_contexts = math.ceil(0.3 * total_contexts)
+
+        big_context_jobs = jobs_ids[:big_contexts]
+        small_context_jobs = jobs_ids[big_contexts:]
+
+        app_logger.info(f'Contexts to be processed as big : {len(big_context_jobs)}')
+        app_logger.debug(f'Big contexts : {big_context_jobs}')
+        app_logger.info(f'Contexts to be processed as small : {len(small_context_jobs)}')
+        app_logger.debug(f'Small contexts : {small_context_jobs}')
+
+        hyperscale_ops_inst = hyperscale_ops.Hyperscale_Ops(utils_obj.config_dict)
+
+        for each_job in big_context_jobs:
+            execution_queue_big_contexts.put(each_job)
+
+        for each_job in small_context_jobs:
+            execution_queue_small_contexts.put(each_job)
+
+        execution_args = list()
+
+        for x in range(num_processes):
+            execution_args.append((x + 1, utils_obj, execution_queue_big_contexts, execution_queue_small_contexts,
+                                   error_queue))
+
+        app_logger.info('Distributing flow into individual processes')
+
+        with mp.Pool(processes=num_processes) as pool:
+            results = pool.starmap(hyperscale_ops_inst.job_coordinator, execution_args)
+
+        if sum(results) == num_processes:
+            pass
+        else:
+            num_errors += 1
+
+        if num_errors > 0:
+            app_logger.info('Hyperscale execution workflow completed with errors')
+        else:
+            app_logger.info('yperscale execution workflow completed successfully')
+
+        del db_utils_inst
+        del conn_manager_inst
+        del hyperscale_ops_inst
 
     if utils_obj.config_dict['add_context'] or utils_obj.config_dict['remove_context']:
         conn_manager_inst = conn_manager.OracleConnectionManager(utils_obj.config_dict['use_thick_client'])
