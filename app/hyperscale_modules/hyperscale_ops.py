@@ -1,12 +1,18 @@
 import api_modules.hyperscale_api_resources.datasets as datasets
 import api_modules.hyperscale_api_resources.jobs as jobs
+import api_modules.hyperscale_api_resources.executions as executions
 
+import os
+import time
 
 class Hyperscale_Ops(
     datasets.DataSets,
-    jobs.Jobs
+    jobs.Jobs,
+    executions.Executions
 ):
     def __init__(self, config_dict):
+        self.session_ts = config_dict['session_ts']
+        self.debug_mode = config_dict['debug_mode']
         self.access_url = config_dict['hyperscale_access_url']
         self.auth_header = {"Authorization": config_dict['hyperscale_access_key']}
         self.connector_id = config_dict['hyperscale_connector_id']
@@ -159,6 +165,126 @@ class Hyperscale_Ops(
                 logger.error(f'Failed to update job id in DB')
                 return False
 
-
-
         return True
+
+    def job_coordinator(self, proc_num, utilities_inst, big_context_queue, small_context_queue, error_queue):
+        execution_success = True
+        contexts_processed_so_far = []
+        execution_request_data = dict()
+        if proc_num == 1:
+            read_big_queue = 'y'
+            read_small_queue = 'n'
+        else:
+            read_small_queue = 'y'
+            read_big_queue = 'n'
+
+        # Setup logging
+        process_log_object = utilities_inst.setup_mp_logging(proc_num, self.session_ts, self.debug_mode, 0,
+                                                             log_type='execution')
+
+        module_name = f"Hyperscale_Execution_{proc_num}"
+        execution_logger = process_log_object.get_module_logger(module_name)
+        execution_logger.info(f"Starting Process : {proc_num}")
+        execution_logger.info(f"Process ID : {os.getpid()}")
+
+        while error_queue.qsize() == 0:
+            try:
+                if read_big_queue == 'y':
+                    execution_logger.info('Reading from big context queue')
+                    next_executable = big_context_queue.get_nowait()
+                elif read_small_queue == 'y':
+                    execution_logger.info('Reading from small context queue')
+                    next_executable = small_context_queue.get_nowait()
+                else:
+                    raise Exception('Neither big nor small queue has any data left')
+            except Exception:
+                if read_big_queue == 'y' and read_small_queue not in ['y', 'x']:
+                    read_small_queue = 'y'
+                    read_big_queue = 'x'
+                    continue
+                elif read_small_queue == 'y' and read_big_queue not in ['y', 'x']:
+                    read_big_queue = 'y'
+                    read_small_queue = 'x'
+                    continue
+                else:
+                    execution_logger.info(f"No more data to read")
+                break
+            else:
+                context_name = next_executable[0]
+                num_rows = next_executable[1]
+                dataset_id = next_executable[2]
+                job_id = next_executable[3]
+
+                execution_logger.info(f'Creating execution for {context_name} with dataset ID : {dataset_id}, '
+                                      f'job ID : {job_id}, having approx. total rows : {num_rows}')
+
+                execution_request_data['job_id'] = job_id
+                success, response = self.create_execution(execution_logger, self.access_url, self.auth_header,
+                                                          execution_request_data)
+                if not success:
+                    execution_logger.error(f'Failed to create execution using executions endpoint '
+                                           f'for job_id : {job_id}')
+                    error_queue.put('error')
+                    execution_success = False
+                    break
+                if not response or not response.json() or 'id' not in response.json():
+                    execution_logger.error('Failed to create execution using executions endpoint')
+                    execution_logger.error(f'Failed to create execution using executions endpoint '
+                                           f'for job_id : {job_id}')
+                    error_queue.put('error')
+                    execution_success = False
+                    break
+
+                execution_id = response.json()['id']
+                execution_logger.info(f'Successfully created execution : {execution_id}')
+
+                execution_logger.info(f'Contexts processed so far : {contexts_processed_so_far}')
+                execution_logger.info(f'Currently processing : {context_name} with dataset ID : {dataset_id}, '
+                                      f'job ID : {job_id}, having approx. total rows : {num_rows}')
+
+                execution_logger.info(f'Monitoring execution ID : {execution_id} for completion')
+
+                while True:
+                    execution_logger.debug(f'Contexts processed so far : {contexts_processed_so_far}')
+                    execution_logger.debug(f'Currently processing : {context_name} with dataset ID : {dataset_id}, '
+                                           f'job ID : {job_id}, having approx. total rows : {num_rows}')
+                    execution_logger.debug(f'Sleeping 2 minutes to get status')
+                    time.sleep(120)
+                    success, response = self.get_execution_summary(execution_logger, self.access_url, self.auth_header,
+                                                                   execution_id)
+                    if not success or not response:
+                        execution_logger.error(f'Failed to get summary for execution ID : {execution_id}')
+                        error_queue.put('error')
+                        break
+
+                    if 'status' not in response.json():
+                        execution_logger.error(f'Failed to get summary for execution ID : {execution_id}')
+                        error_queue.put('error')
+                        break
+
+                    execution_logger.debug(response.json())
+
+                    if response.json()['status'] == 'SUCCEEDED':
+                        execution_logger.info(f'Context : {context_name} with dataset ID : {dataset_id}, '
+                                              f'job ID : {job_id} completed successfully')
+                        break
+
+                    if response.json()['status'] == 'FAILED':
+                        execution_logger.info(f'Context : {context_name} with dataset ID : {dataset_id}, '
+                                              f'job ID : {job_id} failed')
+                        break
+
+                contexts_processed_so_far.append(context_name)
+        ########################################################################
+
+        if execution_success:
+            execution_logger.info(f"Exiting process : {proc_num}")
+        else:
+            execution_logger.error(f"Aborting process : {proc_num}")
+
+        # Terminate logging
+        utilities_inst.terminate_logging(process_log_object, print_out=False)
+
+        del execution_logger
+
+        return execution_success
