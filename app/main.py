@@ -518,27 +518,29 @@ if __name__ == "__main__":
 
         hyperscale_ops_inst = hyperscale_ops.Hyperscale_Ops(utils_obj.config_dict)
 
-        for each_job in big_context_jobs:
-            execution_queue_big_contexts.put(each_job)
+        if not utils_obj.config_dict['execution_preview_only']:
 
-        for each_job in small_context_jobs:
-            execution_queue_small_contexts.put(each_job)
+            for each_job in big_context_jobs:
+                execution_queue_big_contexts.put(each_job)
 
-        execution_args = list()
+            for each_job in small_context_jobs:
+                execution_queue_small_contexts.put(each_job)
 
-        for x in range(num_processes):
-            execution_args.append((x + 1, utils_obj, execution_queue_big_contexts, execution_queue_small_contexts,
-                                   error_queue))
+            execution_args = list()
 
-        app_logger.info('Distributing flow into individual processes')
+            for x in range(num_processes):
+                execution_args.append((x + 1, utils_obj, execution_queue_big_contexts, execution_queue_small_contexts,
+                                       error_queue))
 
-        with mp.Pool(processes=num_processes) as pool:
-            results = pool.starmap(hyperscale_ops_inst.job_coordinator, execution_args)
+            app_logger.info('Distributing flow into individual processes')
 
-        if sum(results) == num_processes:
-            pass
-        else:
-            num_errors += 1
+            with mp.Pool(processes=num_processes) as pool:
+                results = pool.starmap(hyperscale_ops_inst.job_coordinator, execution_args)
+
+            if sum(results) == num_processes:
+                pass
+            else:
+                num_errors += 1
 
         if num_errors > 0:
             app_logger.info('Hyperscale execution workflow completed with errors')
