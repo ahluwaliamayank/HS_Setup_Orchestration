@@ -511,6 +511,8 @@ if __name__ == "__main__":
         big_context_jobs = jobs_ids[:big_contexts]
         small_context_jobs = jobs_ids[big_contexts:]
 
+        small_context_jobs = sorted(small_context_jobs, key=lambda z: z[1])
+
         app_logger.info(f'Contexts to be processed as big : {len(big_context_jobs)}')
         app_logger.debug(f'Big contexts : {big_context_jobs}')
         app_logger.info(f'Contexts to be processed as small : {len(small_context_jobs)}')
@@ -545,7 +547,7 @@ if __name__ == "__main__":
         if num_errors > 0:
             app_logger.info('Hyperscale execution workflow completed with errors')
         else:
-            app_logger.info('yperscale execution workflow completed successfully')
+            app_logger.info('Hyperscale execution workflow completed successfully')
 
         del db_utils_inst
         del conn_manager_inst
