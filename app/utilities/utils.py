@@ -215,6 +215,8 @@ class Utilities(encryption_manager.EncryptionManager):
         self.config_dict['target_connections'] = application_properties['hyperscale_config']['target_connections']
         self.config_dict['execution_preview_only'] = \
             application_properties['hyperscale_config']['execution_preview_only']
+        self.config_dict['percentage_of_big_contexts'] = \
+            application_properties['hyperscale_config']['percentage_of_contexts_to_be_considered_big']
 
         self.config_dict['use_thick_client'] = application_properties['use_thick_client']
         self.config_dict['date_domains'] = [domain.lower() for domain in application_properties['date_domains']]

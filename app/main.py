@@ -506,7 +506,8 @@ if __name__ == "__main__":
         else:
             app_logger.info('Closed connection to repository db')
 
-        big_contexts = math.ceil(0.3 * total_contexts)
+        big_context_factor = utils_obj.config_dict['percentage_of_big_contexts']/100
+        big_contexts = math.ceil(big_context_factor * total_contexts)
 
         big_context_jobs = jobs_ids[:big_contexts]
         small_context_jobs = jobs_ids[big_contexts:]
